@@ -38,19 +38,10 @@ typedef enum logic [2:0] {
 state_t current_state, next_state;
 
 // Shared multiplier and adder inputs/outputs
-logic [31:0] mult_a, mult_b;
-logic [31:0] add_a;
-logic [15:0] add_b;
-logic [31:0] mult_result, add_result;
-
-// Storage registers
-logic [WIDTHIN-1:0] x_reg;
-logic [WIDTHOUT-1:0] temp_reg1, temp_reg2, temp_reg3, temp_reg4;
-logic [WIDTHOUT-1:0] y_reg;
-
-// Control signals
-logic valid_reg;
-logic enable;
+logic [WIDTHOUT-1:0] mult_a, mult_b;
+logic [WIDTHOUT-1:0] add_a;
+logic [WIDTHIN-1:0] add_b;
+logic [WIDTHOUT-1:0] mult_result, add_result;
 
 // Shared multiplier
 mult32x16 shared_mult (
@@ -66,6 +57,16 @@ addr32p16 shared_add (
 	.o_res(add_result)
 );
 
+// Storage registers
+logic [WIDTHIN-1:0] x_reg;
+logic [WIDTHOUT-1:0] temp_reg1, temp_reg2, temp_reg3, temp_reg4;
+logic [WIDTHOUT-1:0] y_reg;
+
+// Control signals
+logic valid_reg;
+logic enable;
+
+// AI tool was used to debug the "Variable 'add_b' driven in a combinational block, may not be driven by any other process" here.
 // Combinational logic for control and adder inputs
 always_comb begin
 	enable = i_ready;
@@ -90,8 +91,8 @@ always_comb begin
 			mult_a = {16'b0, A5};
 			mult_b = {16'b0, x_reg};
 			// A5 * x + A4
-			add_a = mult_result;  // A5 * x
-			add_b = A4;  // A4
+			add_a = mult_result;
+			add_b = A4;
 		end
 		
 		STAGE2: begin
@@ -100,38 +101,38 @@ always_comb begin
 			mult_a = temp_reg1;  // A5 * x + A4
 			mult_b = {16'b0, x_reg};
 			// (A5 * x + A4) * x + A3
-			add_a = mult_result;  // (A5 * x + A4) * x
-			add_b = A3;  // A3
+			add_a = mult_result;
+			add_b = A3;
 		end
 		
 		STAGE3: begin
 			next_state = STAGE4;
 			// ((A5 * x + A4) * x + A3) * x
-			mult_a = temp_reg3;  // ((A5 * x + A4) * x + A3)
+			mult_a = temp_reg2;  // ((A5 * x + A4) * x + A3)
 			mult_b = {16'b0, x_reg};
 			// ((A5 * x + A4) * x + A3) * x + A2
-			add_a = mult_result;  // ((A5 * x + A4) * x + A3) * x
-			add_b = A2;  // A2
+			add_a = mult_result;
+			add_b = A2;
 		end
 		
 		STAGE4: begin
 			next_state = STAGE5;
 			// (((A5 * x + A4) * x + A3) * x + A2) * x
-			mult_a = temp_reg4;  // (((A5 * x + A4) * x + A3) * x + A2)
+			mult_a = temp_reg3;  // (((A5 * x + A4) * x + A3) * x + A2)
 			mult_b = {16'b0, x_reg};
 			// (((A5 * x + A4) * x + A3) * x + A2) * x + A1
-			add_a = mult_result;  // (((A5 * x + A4) * x + A3) * x + A2) * x
-			add_b = A1;  // A1
+			add_a = mult_result;
+			add_b = A1;
 		end
 		
 		STAGE5: begin
 			next_state = OUTPUT;
 			// ((((A5 * x + A4) * x + A3) * x + A2) * x + A1) * x
-			mult_a = y_reg;  // ((((A5 * x + A4) * x + A3) * x + A2) * x + A1)
+			mult_a = temp_reg4;  // ((((A5 * x + A4) * x + A3) * x + A2) * x + A1)
 			mult_b = {16'b0, x_reg};
 			// ((((A5 * x + A4) * x + A3) * x + A2) * x + A1) * x + A0
-			add_a = mult_result;  // ((((A5 * x + A4) * x + A3) * x + A2) * x + A1) * x
-			add_b = A0;  // A0
+			add_a = mult_result;
+			add_b = A0;
 		end
 		
 		OUTPUT: begin
@@ -171,15 +172,15 @@ always_ff @(posedge clk or posedge reset) begin
 			end
 			
 			STAGE2: begin
-				temp_reg3 <= add_result;  // (A5 * x + A4) * x + A3
+				temp_reg2 <= add_result;  // (A5 * x + A4) * x + A3
 			end
 			
 			STAGE3: begin
-				temp_reg4 <= add_result;  // ((A5 * x + A4) * x + A3) * x + A2
+				temp_reg3 <= add_result;  // ((A5 * x + A4) * x + A3) * x + A2
 			end
 			
 			STAGE4: begin
-				y_reg <= add_result;  // (((A5 * x + A4) * x + A3) * x + A2) * x + A1
+				temp_reg4 <= add_result;  // (((A5 * x + A4) * x + A3) * x + A2) * x + A1
 			end
 			
 			STAGE5: begin
@@ -198,7 +199,7 @@ endmodule
 
 /*******************************************************************************************/
 
-// Multiplier module for all multiplications (32x16)
+// Multiplier module for all the remaining 32x16 multiplications
 module mult32x16 (
 	input  [31:0] i_dataa,
 	input  [15:0] i_datab,
