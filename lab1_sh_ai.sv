@@ -66,7 +66,7 @@ addr32p16 shared_add (
 	.o_res(add_result)
 );
 
-// Combinational logic for control
+// Combinational logic for control and adder inputs
 always_comb begin
 	enable = i_ready;
 	
@@ -89,6 +89,9 @@ always_comb begin
 			// A5 * x
 			mult_a = {16'b0, A5};
 			mult_b = {16'b0, x_reg};
+			// A5 * x + A4
+			add_a = mult_result;  // A5 * x
+			add_b = A4;  // A4
 		end
 		
 		STAGE2: begin
@@ -96,6 +99,9 @@ always_comb begin
 			// (A5 * x + A4) * x
 			mult_a = temp_reg1;  // A5 * x + A4
 			mult_b = {16'b0, x_reg};
+			// (A5 * x + A4) * x + A3
+			add_a = mult_result;  // (A5 * x + A4) * x
+			add_b = A3;  // A3
 		end
 		
 		STAGE3: begin
@@ -103,6 +109,9 @@ always_comb begin
 			// ((A5 * x + A4) * x + A3) * x
 			mult_a = temp_reg3;  // ((A5 * x + A4) * x + A3)
 			mult_b = {16'b0, x_reg};
+			// ((A5 * x + A4) * x + A3) * x + A2
+			add_a = mult_result;  // ((A5 * x + A4) * x + A3) * x
+			add_b = A2;  // A2
 		end
 		
 		STAGE4: begin
@@ -110,6 +119,9 @@ always_comb begin
 			// (((A5 * x + A4) * x + A3) * x + A2) * x
 			mult_a = temp_reg4;  // (((A5 * x + A4) * x + A3) * x + A2)
 			mult_b = {16'b0, x_reg};
+			// (((A5 * x + A4) * x + A3) * x + A2) * x + A1
+			add_a = mult_result;  // (((A5 * x + A4) * x + A3) * x + A2) * x
+			add_b = A1;  // A1
 		end
 		
 		STAGE5: begin
@@ -117,6 +129,9 @@ always_comb begin
 			// ((((A5 * x + A4) * x + A3) * x + A2) * x + A1) * x
 			mult_a = y_reg;  // ((((A5 * x + A4) * x + A3) * x + A2) * x + A1)
 			mult_b = {16'b0, x_reg};
+			// ((((A5 * x + A4) * x + A3) * x + A2) * x + A1) * x + A0
+			add_a = mult_result;  // ((((A5 * x + A4) * x + A3) * x + A2) * x + A1) * x
+			add_b = A0;  // A0
 		end
 		
 		OUTPUT: begin
@@ -125,46 +140,6 @@ always_comb begin
 		
 		default: begin
 			next_state = IDLE;
-		end
-	endcase
-end
-
-// Combinational logic for adder inputs
-always_comb begin
-	case (current_state)
-		STAGE1: begin
-			// A5 * x + A4
-			add_a = mult_result;  // A5 * x
-			add_b = A4;  // A4
-		end
-		
-		STAGE2: begin
-			// (A5 * x + A4) * x + A3
-			add_a = mult_result;  // (A5 * x + A4) * x
-			add_b = A3;  // A3
-		end
-		
-		STAGE3: begin
-			// ((A5 * x + A4) * x + A3) * x + A2
-			add_a = mult_result;  // ((A5 * x + A4) * x + A3) * x
-			add_b = A2;  // A2
-		end
-		
-		STAGE4: begin
-			// (((A5 * x + A4) * x + A3) * x + A2) * x + A1
-			add_a = mult_result;  // (((A5 * x + A4) * x + A3) * x + A2) * x
-			add_b = A1;  // A1
-		end
-		
-		STAGE5: begin
-			// ((((A5 * x + A4) * x + A3) * x + A2) * x + A1) * x + A0
-			add_a = mult_result;  // ((((A5 * x + A4) * x + A3) * x + A2) * x + A1) * x
-			add_b = A0;  // A0
-		end
-		
-		default: begin
-			add_a = 0;
-			add_b = 0;
 		end
 	endcase
 end
