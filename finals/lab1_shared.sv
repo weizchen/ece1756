@@ -30,7 +30,8 @@ typedef enum logic [2:0] {
 	STAGE2 = 3'b010,  // (A5 * x + A4) * x + A3
 	STAGE3 = 3'b011,  // ((A5 * x + A4) * x + A3) * x + A2
 	STAGE4 = 3'b100,  // (((A5 * x + A4) * x + A3) * x + A2) * x + A1
-	STAGE5 = 3'b101  // ((((A5 * x + A4) * x + A3) * x + A2) * x + A1) * x + A0
+	STAGE5 = 3'b101,  // ((((A5 * x + A4) * x + A3) * x + A2) * x + A1) * x + A0
+	OUTPUT = 3'b110
 } state_t;
 
 // State machine signals
@@ -86,8 +87,8 @@ always_comb begin
 		STAGE1: begin
 			next_state = STAGE2;
 			// A5 * x
-			mult_a = {16'b0, A5};
-			mult_b = {16'b0, x_reg};
+			mult_a = {5'b0, A5, 11'b0};
+			mult_b = x_reg;
 			// A5 * x + A4
 			add_a = mult_result;
 			add_b = A4;
@@ -97,7 +98,7 @@ always_comb begin
 			next_state = STAGE3;
 			// (A5 * x + A4) * x
 			mult_a = res_reg;  // A5 * x + A4
-			mult_b = {16'b0, x_reg};
+			mult_b = x_reg;
 			// (A5 * x + A4) * x + A3
 			add_a = mult_result;
 			add_b = A3;
@@ -107,7 +108,7 @@ always_comb begin
 			next_state = STAGE4;
 			// ((A5 * x + A4) * x + A3) * x
 			mult_a = res_reg;  // ((A5 * x + A4) * x + A3)
-			mult_b = {16'b0, x_reg};
+			mult_b = x_reg;
 			// ((A5 * x + A4) * x + A3) * x + A2
 			add_a = mult_result;
 			add_b = A2;
@@ -117,20 +118,24 @@ always_comb begin
 			next_state = STAGE5;
 			// (((A5 * x + A4) * x + A3) * x + A2) * x
 			mult_a = res_reg;  // (((A5 * x + A4) * x + A3) * x + A2)
-			mult_b = {16'b0, x_reg};
+			mult_b = x_reg;
 			// (((A5 * x + A4) * x + A3) * x + A2) * x + A1
 			add_a = mult_result;
 			add_b = A1;
 		end
 		
 		STAGE5: begin
-			next_state = IDLE;
+			next_state = OUTPUT;
 			// ((((A5 * x + A4) * x + A3) * x + A2) * x + A1) * x
 			mult_a = res_reg;  // ((((A5 * x + A4) * x + A3) * x + A2) * x + A1)
-			mult_b = {16'b0, x_reg};
+			mult_b = x_reg;
 			// ((((A5 * x + A4) * x + A3) * x + A2) * x + A1) * x + A0
 			add_a = mult_result;
 			add_b = A0;
+		end
+
+		OUTPUT: begin
+			next_state = IDLE;
 		end
 		
 		default: begin
@@ -156,7 +161,7 @@ always_ff @(posedge clk or posedge reset) begin
 		end
 		
 		// Store intermediate results based on current state
-		if (current_state != IDLE) begin
+		if (current_state != IDLE && current_state != OUTPUT) begin
 			res_reg <= add_result;
 		end
 	end
@@ -165,7 +170,7 @@ end
 // Output assignments
 assign o_y = res_reg;
 assign o_ready = (current_state == IDLE) && i_ready;
-assign o_valid = (current_state == STAGE5) && valid_reg && i_ready;
+assign o_valid = (current_state == OUTPUT) && valid_reg && i_ready;
 
 endmodule
 
